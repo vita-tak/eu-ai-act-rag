@@ -15,5 +15,8 @@ __pycache__/
 # Data, source file
 data/
 
+# Scripts
+convert_pdf.py
+
 # OS
 .DS_Store

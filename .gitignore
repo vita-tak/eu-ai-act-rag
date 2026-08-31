@@ -1,0 +1,19 @@
+# Virtual environment
+.venv/
+
+# Environment variables
+.env
+
+# Chroma local db
+chroma_db/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Data, source file
+data/
+
+# OS
+.DS_Store

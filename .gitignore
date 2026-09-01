@@ -17,7 +17,7 @@ data/
 
 # Scripts
 convert_pdf.py
-fetch_documents.py
+fetch_document.py
 
 # OS
 .DS_Store

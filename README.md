@@ -11,46 +11,46 @@ Implemented for greater understanding of the full RAG pipeline.
 
 The system operates in two distinct phases:
 
-**Phase 1 — Indexing (runs once)**
+**Phase 1 - Indexing (runs once)**
 The EU AI Act is loaded, split into chunks on article boundaries,
-embedded into vectors using a local sentence-transformers model, and
-stored in a Chroma vector database.
+embedded into vectors using OpenAI embeddings, and stored in a Chroma
+vector database.
 
-**Phase 2 — Query (runs per question)**
+**Phase 2 - Query (runs per question)**
 The question is embedded using the same model, a similarity search
 finds the most relevant article chunks, and Claude generates a grounded
 answer with explicit article references.
 
 ```
-Document → Chunking → Embeddings → Chroma
-Question → Embeddings → Similarity search → Claude → Answer + sources
+Document -> Chunking -> Embeddings -> Chroma
+Question -> Embeddings -> Similarity search -> Claude -> Answer + sources
 ```
 
 ## Key design decisions
 
-**Article-boundary chunking** — chunks follow the EU AI Act's own
+**Article-boundary chunking** - chunks follow the EU AI Act's own
 semantic structure rather than fixed token counts, preserving the
 meaning of each legislative unit
 
-**Same embedding model for indexing and queries** — chunks and questions
+**Same embedding model for indexing and queries** - chunks and questions
 must share the same vector space for similarity search to be meaningful
 
-**Hybrid retrieval** — direct article lookup via metadata filter for
+**Hybrid retrieval** - direct article lookup via metadata filter for
 queries referencing specific articles (e.g. "summarise Article 12"),
 semantic similarity search for open-ended questions
 
-**Source attribution** — every answer includes the specific articles it
+**Source attribution** - every answer includes the specific articles it
 draws from, enabling verification against the source document
 
 ## Tech Stack
 
-| Component       | Technology                               |
-| --------------- | ---------------------------------------- |
-| Embeddings      | sentence-transformers / all-MiniLM-L6-v2 |
-| Vector database | Chroma                                   |
-| LLM             | Claude (Anthropic API)                   |
-| API layer       | FastAPI                                  |
-| Language        | Python 3.12                              |
+| Component       | Technology                    |
+| --------------- | ----------------------------- |
+| Embeddings      | OpenAI text-embedding-3-small |
+| Vector database | Chroma                        |
+| LLM             | Claude (Anthropic API)        |
+| API layer       | FastAPI                       |
+| Language        | Python 3.12                   |
 
 ## Project structure
 
@@ -71,7 +71,7 @@ eu-ai-act-rag/
 
 ### Prerequisites
 
-Python 3.12+, Anthropic API key
+Python 3.12+, Anthropic API key, OpenAI API key
 
 ### Setup
 
@@ -85,7 +85,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# Add your ANTHROPIC_API_KEY and ANTHROPIC_WORKSPACE_ID to .env
+# Add your ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID and OPENAI_API_KEY to .env
 ```
 
 Add the EU AI Act as a text file at `data/eu_ai_act.txt`. The official

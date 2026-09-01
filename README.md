@@ -28,22 +28,18 @@ Question → Embeddings → Similarity search → Claude → Answer + sources
 
 ## Key design decisions
 
-**Article-boundary chunking** - chunks follow the EU AI Act's own
+**Article-boundary chunking:** chunks follow the EU AI Act's own
 semantic structure rather than fixed token counts, preserving the
 meaning of each legislative unit
 
-**Same embedding model for indexing and queries** - chunks and questions
+**Same embedding model for indexing and queries:** chunks and questions
 must share the same vector space for similarity search to be meaningful
 
-**Hybrid retrieval** - direct article lookup via metadata filter for
+**Hybrid retrieval:** direct article lookup via metadata filter for
 queries referencing specific articles (e.g. "summarise Article 12"),
 semantic similarity search for open-ended questions
 
-**No LangChain** - each component (loader, chunker, embedder, retriever,
-generator) is implemented explicitly, making the data flow transparent
-and each step independently testable
-
-**Source attribution** - every answer includes the specific articles it
+**Source attribution:** every answer includes the specific articles it
 draws from, enabling verification against the source document
 
 ## Tech Stack

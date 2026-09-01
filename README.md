@@ -39,10 +39,6 @@ must share the same vector space for similarity search to be meaningful
 queries referencing specific articles (e.g. "summarise Article 12"),
 semantic similarity search for open-ended questions
 
-**No LangChain** — each component (loader, chunker, embedder, retriever,
-generator) is implemented explicitly, making the data flow transparent
-and each step independently testable
-
 **Source attribution** — every answer includes the specific articles it
 draws from, enabling verification against the source document
 

@@ -100,8 +100,8 @@ def ask_user(question):
 
 
 def generate_report(findings):
-    # Claude has already structured the report via input_schema.
-    return str(findings)
+    # Returns structured dict so the caller can format it.
+    return findings
 
 
 def execute_tool(tool_name, tool_input):

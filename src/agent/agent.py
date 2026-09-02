@@ -9,6 +9,16 @@ from tools import tools, execute_tool
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 
+def print_report(report):
+    print("\n=== EU AI Act Compliance Report ===")
+    print(f"Classification: {report['classification']}\n")
+    print(f"Reasoning:\n{report['reasoning']}\n")
+    print("Cited articles:")
+    for article in report['cited_articles']:
+        print(f"  - {article}")
+    print("===================================\n")
+
+
 def run_agent(product_description, max_steps=12):
     messages = [
         {"role": "user", "content": product_description}
@@ -38,14 +48,18 @@ def run_agent(product_description, max_steps=12):
             # Claude may call multiple tools in one response.
             # Every tool_use block must have a matching tool_result.
             tool_results = []
+            report = None
             for block in response.content:
                 if block.type == "tool_use":
-                    print(f"Tool: {block.name}, Input: {block.input}")
                     tool_result = execute_tool(block.name, block.input)
+
+                    if block.name == "generate_report":
+                        report = block.input
+
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": block.id,
-                        "content": tool_result
+                        "content": str(tool_result)
                     })
 
             # Feed all results back in a single message.
@@ -54,9 +68,14 @@ def run_agent(product_description, max_steps=12):
                 "content": tool_results
             })
 
+            # If generate_report was called, return the structured report.
+            if report:
+                return report
+
     # Safety exit: fires only if the agent never called generate_report.
     raise RuntimeError("Agent reached max_steps without completing")
 
 
 if __name__ == "__main__":
-    run_agent("An AI that screens job applications and ranks candidates")
+    report = run_agent("An AI that screens job applications and ranks candidates")
+    print_report(report)

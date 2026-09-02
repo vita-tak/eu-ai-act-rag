@@ -68,13 +68,13 @@ tools = [
                 "classification": {
                     "type": "string",
                     "enum": [
-                        "Ej ett AI-system",
-                        "Minimal risk",
-                        "Begränsad risk",
-                        "Hög risk",
-                        "GPAI",
-                        "Förbjuden praktik"
-                    ]
+                            "Not an AI system",
+                            "Minimal risk",
+                            "Limited risk",
+                            "High risk",
+                            "GPAI",
+                            "Prohibited practice"
+                        ]
                 },
                 "reasoning": {
                     "type": "string",

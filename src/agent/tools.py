@@ -1,5 +1,13 @@
 import requests
 
+
+class FollowUpRequired(Exception):
+    # Raised when the agent needs more information from the user.
+    # Carries the question so the caller can return it to the client.
+    def __init__(self, question):
+        self.question = question
+
+
 tools = [
     {
         "name": "search_eu_ai_act",
@@ -93,10 +101,14 @@ def search_eu_ai_act(query):
     return data.get("answer", "No results found")
 
 
-def ask_user(question):
-    # Pauses the loop and waits for user input.
-    print(f"\nFollow-up question: {question}")
-    return input("Your answer: ")
+def ask_user(question, interactive=False):
+    if interactive:
+        # CLI mode: wait for keyboard input.
+        print(f"\nFollow-up question: {question}")
+        return input("Your answer: ")
+    else:
+        # API mode: pause the loop and return the question to the caller.
+        raise FollowUpRequired(question)
 
 
 def generate_report(findings):
@@ -104,12 +116,12 @@ def generate_report(findings):
     return findings
 
 
-def execute_tool(tool_name, tool_input):
+def execute_tool(tool_name, tool_input, interactive=False):
     # Dispatches to the right function based on Claudes choice.
     if tool_name == "search_eu_ai_act":
         return search_eu_ai_act(tool_input["query"])
     elif tool_name == "ask_user":
-        return ask_user(tool_input["question"])
+        return ask_user(tool_input["question"], interactive=interactive)
     elif tool_name == "generate_report":
         return generate_report(tool_input)
     else:

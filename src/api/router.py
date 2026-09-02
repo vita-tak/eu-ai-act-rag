@@ -3,8 +3,8 @@ import asyncio
 from fastapi.concurrency import run_in_threadpool
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from src.retrieval.retriever import retrieve
-from src.generation.generator import generate
+from src.rag.retrieval.retriever import retrieve
+from src.rag.generation.generator import generate
 from src.agent.agent import run_agent
 
 router = APIRouter()

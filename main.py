@@ -1,9 +1,9 @@
 import os
-from src.ingestion.loader import load_document
-from src.ingestion.chunker import chunk_document
-from src.ingestion.embedder import embed_and_store
-from src.retrieval.retriever import retrieve
-from src.generation.generator import generate
+from src.rag.ingestion.loader import load_document
+from src.rag.ingestion.chunker import chunk_document
+from src.rag.ingestion.embedder import embed_and_store
+from src.rag.retrieval.retriever import retrieve
+from src.rag.generation.generator import generate
 from src.config import CHROMA_PATH
 
 

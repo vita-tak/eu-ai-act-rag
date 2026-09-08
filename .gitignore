@@ -21,3 +21,5 @@ fetch_document.py
 
 # OS
 .DS_Store
+
+.deepeval

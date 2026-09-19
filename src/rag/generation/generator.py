@@ -11,6 +11,7 @@ def generate(query: str, chunks: list) -> dict:
 
     context = "\n\n".join([f"{chunk['article']}:\n{chunk['text']}" for chunk in chunks])
 
+    # Instruct the model to cite articles so answers stay verifiable against the source text.
     prompt = f"""Here are relevant sections from the EU AI Act:
 
 {context}

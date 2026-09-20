@@ -1,7 +1,11 @@
 from openai import OpenAI
+from flashrank import Ranker, RerankRequest
 from src.config import CHROMA_PATH, EMBEDDING_MODEL, TOP_K, OPENAI_API_KEY
 import chromadb
 import re
+
+# Load the re-ranker once at module level to avoid reloading on every call.
+ranker = Ranker()
 
 
 def retrieve(query: str) -> list:
@@ -10,7 +14,8 @@ def retrieve(query: str) -> list:
 
     Uses keyword-based metadata filtering when the query references a specific
     article (e.g. "Article 12"), and falls back to semantic similarity search
-    using embeddings for open-ended questions.
+    using embeddings for open-ended questions. Similarity search results are
+    re-ranked before being returned.
 
     Args:
         query: The user's natural language question.
@@ -24,6 +29,7 @@ def retrieve(query: str) -> list:
 
     # Check if the query references a specific article number.
     # If so, use direct metadata filtering for exact lookup.
+    # Re-ranking is skipped here since the results are already exact matches.
     match = re.search(r'Article \d+', query)
     if match:
         article = match.group()
@@ -31,8 +37,8 @@ def retrieve(query: str) -> list:
         return [{"text": doc, "article": meta["article"]}
                 for doc, meta in zip(results["documents"], results["metadatas"])]
 
-    # No article reference found: embed the query and run semantic search
-    # to find the most relevant chunks by vector similarity.
+    # No article reference found: embed the query and run semantic search.
+    # Fetch more candidates than TOP_K so the re-ranker has room to work.
     response = client.embeddings.create(
         model=EMBEDDING_MODEL,
         input=[query]
@@ -41,9 +47,19 @@ def retrieve(query: str) -> list:
 
     results = collection.query(
         query_embeddings=[query_embedding],
-        n_results=TOP_K
+        n_results=TOP_K * 2
     )
     documents = results["documents"][0]
     metadatas = results["metadatas"][0]
-    return [{"text": doc, "article": meta["article"]}
-            for doc, meta in zip(documents, metadatas)]
+
+    # Re-rank the candidates by relevance to the query.
+    # RerankRequest takes the query and a list of passage dicts.
+    passages = [{"id": i, "text": doc} for i, doc in enumerate(documents)]
+    rerank_request = RerankRequest(query=query, passages=passages)
+    reranked = ranker.rerank(rerank_request)
+
+    # Keep only the top TOP_K results after re-ranking,
+    # and map back to the original metadata using the passage id.
+    top = reranked[:TOP_K]
+    return [{"text": passages[r["id"]]["text"], "article": metadatas[r["id"]]["article"]}
+            for r in top]

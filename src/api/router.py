@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from src.rag.retrieval.retriever import retrieve
 from src.rag.generation.generator import generate
 from src.agent.agent import run_agent
+from src.chat.router import handle_message
 
 router = APIRouter()
 
@@ -38,6 +39,19 @@ class ClassifyResponse(BaseModel):
     classification: str | None = None
     reasoning: str | None = None
     cited_articles: list[str] | None = None
+
+
+class ChatRequest(BaseModel):
+    conversation_id: str
+    message: str
+
+
+class ChatResponse(BaseModel):
+    type: str
+    answer: str | None = None
+    sources: list[str] | None = None
+    question: str | None = None
+    report: dict | None = None
 
 
 @router.post("/query", response_model=QueryResponse)
@@ -98,3 +112,13 @@ async def classify_answer(request: AnswerRequest):
         reasoning=result["report"]["reasoning"],
         cited_articles=result["report"]["cited_articles"]
     )
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    result = await run_in_threadpool(
+        handle_message,
+        request.conversation_id,
+        request.message
+    )
+    return ChatResponse(**result)

@@ -61,6 +61,12 @@ def handle_message(conversation_id: str, message: str) -> dict:
             }
 
         set_idle(conversation_id)
+        if "report" not in result:
+            return {
+                "type": "rag_response",
+                "answer": "Classification could not be completed. Please try again with more details about your AI system.",
+                "sources": []
+            }
         return {
             "type": "classification",
             "report": result["report"]
@@ -94,6 +100,12 @@ def handle_message(conversation_id: str, message: str) -> dict:
             }
 
         set_idle(conversation_id)
+        if "report" not in result:
+            return {
+                "type": "rag_response",
+                "answer": "Classification could not be completed. Please try again with more details about your AI system.",
+                "sources": []
+            }
         return {
             "type": "classification",
             "report": result["report"]

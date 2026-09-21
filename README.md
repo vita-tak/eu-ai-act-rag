@@ -9,7 +9,7 @@ agentic tool use patterns.
 
 ## System overview
 
-The project consists of two layers:
+The project consists of three layers:
 
 **Layer 1 - RAG system**
 Ask questions about the EU AI Act in natural language and get answers
@@ -25,6 +25,13 @@ structured report with classification, reasoning, and cited articles.
 The agent is multi-turn: it pauses when it needs clarification, returns
 a question to the caller, and resumes when the answer arrives. Sessions
 are maintained server-side by session ID.
+
+**Layer 3 - Chat interface**
+A unified chat endpoint that lets users mix EU AI Act questions and
+compliance classifications freely in the same conversation. An intent
+classifier routes each message to the correct flow, and a state machine
+tracks ongoing classifications so the agent can be resumed when the
+user answers a follow-up question.
 
 ## How it works
 
@@ -64,6 +71,20 @@ Product description -> Agent loop:
 The loop runs until the agent calls generate_report or hits the
 max_steps safety limit.
 
+### Chat interface (intent classification)
+
+Each message is classified into one of three intents before being routed:
+
+```
+POST /chat
+  message -> intent classifier -> rag_query        -> RAG pipeline
+                               -> risk_classification -> agent loop
+                               -> risk_classification_followup -> resume agent
+```
+
+If a classification is in progress and the user switches topic, the
+ongoing session is abandoned and the new intent is handled instead.
+
 ## Key design decisions
 
 **Docling for PDF parsing** - Docling understands PDF layout and
@@ -102,6 +123,15 @@ questions across multiple HTTP requests.
 raises an exception instead of blocking on input(), which signals the
 loop to pause and return the question to the caller.
 
+**tool_use_id injection** - when the agent pauses for a follow-up, the
+tool_use_id is returned to the caller. The user's answer is injected as
+a proper tool_result block with the matching id when the conversation
+resumes, preserving the correct message format for the Anthropic API.
+
+**Intent classification** - a small LLM classifier (Claude Haiku,
+max_tokens=100) routes each message to the correct flow based on message
+content and current conversation state.
+
 **Indexing is a local build step** - Docling is a development-only
 dependency and is never installed in production. The Chroma database is
 built locally and deployed as a static file.
@@ -119,15 +149,16 @@ The agent classifies products into one of six categories:
 
 ## Tech stack
 
-| Component       | Technology                    |
-| --------------- | ----------------------------- |
-| PDF parsing     | Docling (local, build-time)   |
-| Embeddings      | OpenAI text-embedding-3-small |
-| Vector database | Chroma                        |
-| Re-ranking      | flashrank                     |
-| LLM             | Claude Haiku (Anthropic API)  |
-| API layer       | FastAPI                       |
-| Language        | Python 3.12                   |
+| Component         | Technology                    |
+| ----------------- | ----------------------------- |
+| PDF parsing       | Docling (local, build-time)   |
+| Embeddings        | OpenAI text-embedding-3-small |
+| Vector database   | Chroma                        |
+| Re-ranking        | flashrank                     |
+| LLM               | Claude Haiku (Anthropic API)  |
+| Intent classifier | Claude Haiku (Anthropic API)  |
+| API layer         | FastAPI                       |
+| Language          | Python 3.12                   |
 
 ## Project structure
 
@@ -141,6 +172,10 @@ eu-ai-act-rag/
 │   ├── agent/
 │   │   ├── agent.py     # ReAct loop and session logic
 │   │   └── tools.py     # tool definitions and implementations
+│   ├── chat/
+│   │   ├── intent.py    # intent classifier
+│   │   ├── conversation.py  # state machine per conversation_id
+│   │   └── router.py    # routes messages to correct flow
 │   ├── api/             # FastAPI app and router
 │   └── config.py
 ├── tests/
@@ -203,9 +238,54 @@ API documentation available at `http://localhost:8000/docs`.
 
 ## API reference
 
+### POST /chat
+
+The primary endpoint. Accepts a message and a conversation ID, classifies
+the intent, and routes to the correct flow. Supports mixing EU AI Act
+questions and compliance classifications in the same conversation.
+
+```json
+{
+  "conversation_id": "abc-123",
+  "message": "My AI system screens job applications and ranks candidates."
+}
+```
+
+Response when a follow-up question is needed:
+
+```json
+{
+  "type": "follow_up",
+  "question": "Does this system make autonomous hiring decisions?"
+}
+```
+
+Response for a RAG query:
+
+```json
+{
+  "type": "rag_response",
+  "answer": "...",
+  "sources": ["Article  6", "ANNEX III"]
+}
+```
+
+Response when classification is complete:
+
+```json
+{
+  "type": "classification",
+  "report": {
+    "classification": "High risk",
+    "reasoning": "...",
+    "cited_articles": ["Annex III, Section 4(a)", "Article 9", "Article 14"]
+  }
+}
+```
+
 ### POST /query
 
-Ask a question about the EU AI Act.
+Ask a question about the EU AI Act directly, bypassing intent classification.
 
 ```json
 {
@@ -224,7 +304,7 @@ Response:
 
 ### POST /classify/start
 
-Start a compliance classification session.
+Start a compliance classification session directly, bypassing intent classification.
 
 ```json
 {
@@ -286,6 +366,10 @@ where Claude decides which tools to call, your code executes them, and
 the results feed back into the next decision. The multi-turn session
 pattern is directly applicable to any agent that needs to gather
 information before producing a result.
+
+The chat layer adds intent classification and a conversation state
+machine, showing how to build a unified interface over multiple distinct
+AI workflows without exposing that complexity to the caller.
 
 The EU AI Act is the domain because it is the regulatory framework that
 governs AI systems in Europe. Understanding it programmatically is

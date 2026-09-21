@@ -9,7 +9,7 @@ ANTHROPIC_WORKSPACE_ID = os.getenv("ANTHROPIC_WORKSPACE_ID")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Paths
-DATA_PATH = "data/eu_ai_act.txt"
+DATA_PATH = "data/EU AI Act.pdf"
 CHROMA_PATH = "chroma_db"
 
 # Embedding model

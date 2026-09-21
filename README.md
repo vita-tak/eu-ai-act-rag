@@ -30,19 +30,23 @@ are maintained server-side by session ID.
 
 ### RAG pipeline
 
-**Phase 1 - Indexing (runs once)**
-The EU AI Act is loaded, split into chunks on article boundaries,
-embedded into vectors using OpenAI embeddings, and stored in a Chroma
-vector database.
+**Phase 1 - Indexing (runs once, locally)**
+The EU AI Act PDF is parsed by Docling, which preserves the document's
+semantic structure and exports it as Markdown. The Markdown is split
+into chunks on heading boundaries, embedded into vectors using OpenAI
+embeddings, and stored in a Chroma vector database. The finished
+database is committed and deployed as a static file — Docling is a
+local build-time tool and is never installed in production.
 
 **Phase 2 - Query (runs per question)**
 The question is embedded using the same model, a similarity search
-finds the most relevant article chunks, and Claude generates a grounded
-answer with explicit article references.
+finds the most relevant article chunks, a re-ranker sorts them by
+relevance, and Claude generates a grounded answer with explicit article
+references.
 
 ```
-Document -> Chunking -> Embeddings -> Chroma
-Question -> Embeddings -> Similarity search -> Claude -> Answer + sources
+PDF -> Docling -> Markdown -> Chunking -> Embeddings -> Chroma
+Question -> Embeddings -> Similarity search -> Re-ranking -> Claude -> Answer + sources
 ```
 
 ### Compliance agent (ReAct loop)
@@ -62,31 +66,45 @@ max_steps safety limit.
 
 ## Key design decisions
 
-**Article-boundary chunking** - chunks follow the EU AI Act's own
-semantic structure rather than fixed token counts, preserving the
-meaning of each legislative unit
+**Docling for PDF parsing** - Docling understands PDF layout and
+preserves the document's hierarchical structure (headings, sections,
+lists) when exporting to Markdown. This produces more reliable chunks
+than raw text extraction.
+
+**Markdown-boundary chunking** - chunks follow the document's own
+heading structure rather than fixed token counts or regex patterns,
+preserving the semantic meaning of each legislative unit.
 
 **Same embedding model for indexing and queries** - chunks and questions
-must share the same vector space for similarity search to be meaningful
+must share the same vector space for similarity search to be meaningful.
+
+**Re-ranking** - similarity search returns RERANK_CANDIDATES candidates,
+which are re-ranked by a local flashrank model before the top TOP_K
+results are sent to Claude. This improves relevance over pure vector
+similarity.
 
 **Hybrid retrieval** - direct article lookup via metadata filter for
 queries referencing specific articles (e.g. "summarise Article 12"),
-semantic similarity search for open-ended questions
+semantic similarity search with re-ranking for open-ended questions.
 
 **Source attribution** - every answer includes the specific articles it
-draws from, enabling verification against the source document
+draws from, enabling verification against the source document.
 
 **Agent as API consumer** - the compliance agent calls the RAG system
 via HTTP rather than importing it directly, keeping the two layers
-independently deployable
+independently deployable.
 
 **Session-based multi-turn** - agent state (the messages list) is stored
 server-side by session ID, allowing the caller to answer follow-up
-questions across multiple HTTP requests
+questions across multiple HTTP requests.
 
 **FollowUpRequired exception** - when running in API mode, ask_user
 raises an exception instead of blocking on input(), which signals the
-loop to pause and return the question to the caller
+loop to pause and return the question to the caller.
+
+**Indexing is a local build step** - Docling is a development-only
+dependency and is never installed in production. The Chroma database is
+built locally and deployed as a static file.
 
 ## Risk classifications
 
@@ -103,8 +121,10 @@ The agent classifies products into one of six categories:
 
 | Component       | Technology                    |
 | --------------- | ----------------------------- |
+| PDF parsing     | Docling (local, build-time)   |
 | Embeddings      | OpenAI text-embedding-3-small |
 | Vector database | Chroma                        |
+| Re-ranking      | flashrank                     |
 | LLM             | Claude Haiku (Anthropic API)  |
 | API layer       | FastAPI                       |
 | Language        | Python 3.12                   |
@@ -114,15 +134,19 @@ The agent classifies products into one of six categories:
 ```
 eu-ai-act-rag/
 ├── src/
-│   ├── ingestion/       # Phase 1: load, chunk, embed
-│   ├── retrieval/       # Phase 2: similarity search
-│   ├── generation/      # Phase 2: prompt building and Claude call
+│   ├── rag/
+│   │   ├── ingestion/   # loader (Docling), chunker, embedder
+│   │   ├── retrieval/   # hybrid search + re-ranking
+│   │   └── generation/  # prompt building and Claude call
 │   ├── agent/
 │   │   ├── agent.py     # ReAct loop and session logic
-│   │   └── tools.py     # Tool definitions and implementations
+│   │   └── tools.py     # tool definitions and implementations
 │   ├── api/             # FastAPI app and router
 │   └── config.py
-├── data/                # EU AI Act source document (not committed)
+├── tests/
+│   └── evals/           # DeepEval agent evals
+├── data/                # EU AI Act PDF (not committed)
+├── chroma_db/           # pre-built vector database (committed)
 ├── main.py              # CLI entry point for RAG system
 └── requirements.txt
 ```
@@ -148,17 +172,26 @@ cp .env.example .env
 # Add your ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID and OPENAI_API_KEY to .env
 ```
 
-Add the EU AI Act as a text file at `data/eu_ai_act.txt`. The official
-text is available [here](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689).
+The Chroma database is included in the repository and ready to use.
+To rebuild it from a new PDF, install Docling locally (not in requirements.txt):
+
+```bash
+pip install docling
+```
+
+Add the EU AI Act PDF at `data/eu_ai_act.pdf` and run:
+
+```bash
+python main.py
+```
+
+The first run detects a missing database and rebuilds it automatically.
 
 ### Run CLI (RAG only)
 
 ```bash
 python main.py
 ```
-
-The first run indexes the document automatically. Subsequent runs go
-straight to the query interface.
 
 ### Run API
 
@@ -234,11 +267,19 @@ Continue a classification session with an answer to a follow-up question.
 
 Response follows the same format as /classify/start.
 
+## Running evals
+
+```bash
+PYTHONPATH=. deepeval test run tests/evals/test_agent.py
+```
+
+Requires the API server to be running on port 8000.
+
 ## Why this project
 
 This project implements each step of the RAG pipeline explicitly:
-chunking strategy, embedding model selection, vector storage, retrieval,
-and prompt construction.
+PDF parsing strategy, chunking approach, embedding model selection,
+vector storage, re-ranking, retrieval, and prompt construction.
 
 The compliance agent extends this with agentic tool use: a ReAct loop
 where Claude decides which tools to call, your code executes them, and

@@ -30,9 +30,11 @@ def retrieve(query: str) -> list:
     # Check if the query references a specific article number.
     # If so, use direct metadata filtering for exact lookup.
     # Re-ranking is skipped here since the results are already exact matches.
-    match = re.search(r'Article \d+', query)
+    match = re.search(r'Article\s+\d+', query)
     if match:
-        article = match.group()
+        # Normalize to match Docling's double-space format in metadata.
+        article_num = re.search(r'\d+', match.group()).group()
+        article = f"Article  {article_num}"
         results = collection.get(where={"article": article})
         return [{"text": doc, "article": meta["article"]}
                 for doc, meta in zip(results["documents"], results["metadatas"])]

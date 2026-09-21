@@ -16,4 +16,5 @@ CHROMA_PATH = "chroma_db"
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 # Retrieval
-TOP_K = 5
+TOP_K = 8
+RERANK_CANDIDATES = 16

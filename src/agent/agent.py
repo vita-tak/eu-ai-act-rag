@@ -54,19 +54,12 @@ def run_agent(messages, max_steps=12, interactive=False):
                             interactive=interactive
                         )
                     except FollowUpRequired as e:
-                        # Agent needs more information.
-                        # Append partial tool results and return the question.
-                        messages.append({
-                            "role": "user",
-                            "content": [{
-                                "type": "tool_result",
-                                "tool_use_id": block.id,
-                                "content": "Waiting for user response."
-                            }]
-                        })
+                        # Return the tool_use_id so the caller can inject the real
+                        # answer as a proper tool_result when the user responds.
                         return {
                             "status": "follow_up",
                             "question": e.question,
+                            "tool_use_id": block.id,
                             "messages": messages
                         }
 

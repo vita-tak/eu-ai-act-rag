@@ -3,8 +3,8 @@ import re
 
 def chunk_document(text: str) -> list:
     """
-    Split the EU AI Act text into chunks along article boundaries, so each
-    chunk corresponds to exactly one article rather than a fixed size.
+    Split the EU AI Act text into chunks along article and annex boundaries, so each
+    chunk corresponds to exactly one article or annex, rather than a fixed size.
 
     Args:
         text: The cleaned EU AI Act text (see loader.clean_text).
@@ -12,8 +12,8 @@ def chunk_document(text: str) -> list:
     Returns:
         A list of dicts with "article" and "text" keys.
     """
-    # Capturing group keeps the matched "Article N" headings in the result.
-    chunks = re.split(r'(^Article \d+$)', text, flags=re.MULTILINE)
+    # Capturing group keeps the matched headings (articles and annexes) in the result.
+    chunks = re.split(r'(^Article \d+$|^ANNEX [IVX]+$)', text, flags=re.MULTILINE)
 
     combined_chunks = []
     for i in range(1, len(chunks), 2):

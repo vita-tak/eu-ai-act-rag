@@ -3,22 +3,26 @@ import re
 
 def chunk_document(text: str) -> list:
     """
-    Split the EU AI Act text into chunks along article and annex boundaries, so each
-    chunk corresponds to exactly one article or annex, rather than a fixed size.
+    Split the EU AI Act Markdown into chunks on heading boundaries.
+
+    Docling exports the document as Markdown with ## headings for articles
+    and annexes. Each chunk corresponds to one heading section.
 
     Args:
-        text: The cleaned EU AI Act text (see loader.clean_text).
+        text: The EU AI Act as Markdown from Docling (see loader.py).
 
     Returns:
         A list of dicts with "article" and "text" keys.
     """
-    # Capturing group keeps the matched headings (articles and annexes) in the result.
-    chunks = re.split(r'(^Article \d+$|^ANNEX [IVX]+$)', text, flags=re.MULTILINE)
+    # Split on ## headings that start with Article or ANNEX.
+    # Capturing group keeps the heading in the result.
+    chunks = re.split(r'(^## (?:Article\s+\d+|ANNEX\s+[IVX]+).*$)', text, flags=re.MULTILINE)
 
     combined_chunks = []
     for i in range(1, len(chunks), 2):
         heading = chunks[i]
-        # Guard against a heading with no trailing content.
         content = chunks[i + 1] if i + 1 < len(chunks) else ""
-        combined_chunks.append({"article": heading.strip(), "text": content.strip()})
+        # Strip ## prefix to keep article key consistent with metadata.
+        article = heading.replace('## ', '').strip()
+        combined_chunks.append({"article": article, "text": content.strip()})
     return combined_chunks

@@ -1,6 +1,6 @@
 from openai import OpenAI
 from flashrank import Ranker, RerankRequest
-from src.config import CHROMA_PATH, EMBEDDING_MODEL, TOP_K, OPENAI_API_KEY
+from src.config import CHROMA_PATH, EMBEDDING_MODEL, TOP_K, OPENAI_API_KEY, RERANK_CANDIDATES
 import chromadb
 import re
 
@@ -38,7 +38,7 @@ def retrieve(query: str) -> list:
                 for doc, meta in zip(results["documents"], results["metadatas"])]
 
     # No article reference found: embed the query and run semantic search.
-    # Fetch more candidates than TOP_K so the re-ranker has room to work.
+    # Fetch RERANK_CANDIDATES chunks so the re-ranker has room to work.
     response = client.embeddings.create(
         model=EMBEDDING_MODEL,
         input=[query]
@@ -47,7 +47,7 @@ def retrieve(query: str) -> list:
 
     results = collection.query(
         query_embeddings=[query_embedding],
-        n_results=TOP_K * 2
+        n_results=RERANK_CANDIDATES
     )
     documents = results["documents"][0]
     metadatas = results["metadatas"][0]

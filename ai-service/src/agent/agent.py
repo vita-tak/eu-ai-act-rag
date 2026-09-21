@@ -4,6 +4,16 @@ from src.agent.tools import tools, execute_tool, FollowUpRequired
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
+SYSTEM_PROMPT = (
+    "You are an EU AI Act compliance classifier. "
+    "You must ALWAYS use one of the provided tools to respond. "
+    "Never respond with plain text. "
+    "Use search_eu_ai_act to find relevant articles, "
+    "ask_user to clarify missing information, "
+    "and generate_report to deliver the final classification. "
+    "You must always end by calling generate_report."
+)
+
 
 def print_report(report):
     print("\n=== EU AI Act Compliance Report ===")
@@ -16,7 +26,6 @@ def print_report(report):
 
 
 def run_agent(messages, max_steps=12, interactive=False):
-    # Accepts an existing messages list so sessions can be resumed.
     for step in range(max_steps):
         print(f"Step {step + 1}")
 
@@ -24,6 +33,7 @@ def run_agent(messages, max_steps=12, interactive=False):
             model="claude-haiku-4-5-20251001",
             max_tokens=1000,
             tools=tools,
+            system=SYSTEM_PROMPT,
             messages=messages
         )
 
@@ -33,15 +43,11 @@ def run_agent(messages, max_steps=12, interactive=False):
             return {"status": "done", "messages": messages}
 
         if response.stop_reason == "tool_use":
-            # Append Claudes response as plain dicts, not SDK objects.
             messages.append({"role": "assistant", "content": [
                 block.model_dump() for block in response.content
             ]})
 
-            # Claude may call multiple tools in one response.
-            # Every tool_use block must have a matching tool_result.
             tool_results = []
-            report = None
 
             for block in response.content:
                 if block.type == "tool_use":
@@ -54,8 +60,6 @@ def run_agent(messages, max_steps=12, interactive=False):
                             interactive=interactive
                         )
                     except FollowUpRequired as e:
-                        # Return the tool_use_id so the caller can inject the real
-                        # answer as a proper tool_result when the user responds.
                         return {
                             "status": "follow_up",
                             "question": e.question,
@@ -63,8 +67,10 @@ def run_agent(messages, max_steps=12, interactive=False):
                             "messages": messages
                         }
 
+                    # Return immediately when generate_report is called.
+                    # Do not feed the result back to Claude.
                     if block.name == "generate_report":
-                        report = tool_result
+                        return {"status": "done", "report": tool_result, "messages": messages}
 
                     tool_results.append({
                         "type": "tool_result",
@@ -72,17 +78,11 @@ def run_agent(messages, max_steps=12, interactive=False):
                         "content": str(tool_result)
                     })
 
-            # Feed all results back in a single message.
             messages.append({
                 "role": "user",
                 "content": tool_results
             })
 
-            # If generate_report was called, return the structured report.
-            if report:
-                return {"status": "done", "report": report, "messages": messages}
-
-    # Safety exit: fires only if the agent never called generate_report.
     raise RuntimeError("Agent reached max_steps without completing")
 
 

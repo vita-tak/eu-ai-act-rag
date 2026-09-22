@@ -4,8 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatResponse } from "@/types/chat";
 import { AssistantMessage } from "@/components/AssistantMessage";
 import { ChatComposer } from "@/components/ChatComposer";
-import { ChatHeader } from "@/components/ChatHeader";
+import { ChatHeader, FixedHeaderTitle } from "@/components/ChatHeader";
 import { LoadingSparkle } from "@/components/LoadingSparkle";
+import { SparkleIcon } from "@/components/SparkleIcon";
 import { SuggestionChips } from "@/components/SuggestionChips";
 import { SystemMessage } from "@/components/SystemMessage";
 import { UserMessage } from "@/components/UserMessage";
@@ -102,30 +103,48 @@ export default function Home() {
       aria-label="Chat"
       className="mx-auto flex h-dvh w-full max-w-[var(--column)] flex-col px-6"
     >
+      {hasMessages && <FixedHeaderTitle />}
       <ChatHeader hasMessages={hasMessages} />
 
-      <section
-        aria-live="polite"
-        aria-label="Conversation"
-        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
-      >
-        <div className="mt-auto flex flex-col gap-2.5 pt-12 pb-5">
-          {messages.map((message) => (
-            <article key={message.id} aria-label={roleLabel(message.role)}>
-              {message.role === "user" && <UserMessage text={message.text} />}
-              {message.role === "assistant" && (
-                <AssistantMessage response={message.response} />
-              )}
-              {message.role === "system" && (
-                <SystemMessage text={message.text} />
-              )}
-            </article>
-          ))}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {hasMessages && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0 z-10 h-14 bg-gradient-to-b from-[var(--page)] to-transparent"
+          />
+        )}
 
-          {isLoading && <LoadingSparkle />}
-          <div ref={endRef} />
-        </div>
-      </section>
+        <section
+          aria-live="polite"
+          aria-label="Conversation"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+        >
+          <div
+            className={`mt-auto flex flex-col gap-2.5 pb-5 ${hasMessages ? "pt-20" : "pt-12"}`}
+          >
+            {hasMessages && (
+              <SparkleIcon className="mb-2 size-[52px] text-ink" />
+            )}
+
+            {messages.map((message) => (
+              <article key={message.id} aria-label={roleLabel(message.role)}>
+                {message.role === "user" && (
+                  <UserMessage text={message.text} />
+                )}
+                {message.role === "assistant" && (
+                  <AssistantMessage response={message.response} />
+                )}
+                {message.role === "system" && (
+                  <SystemMessage text={message.text} />
+                )}
+              </article>
+            ))}
+
+            {isLoading && <LoadingSparkle />}
+            <div ref={endRef} />
+          </div>
+        </section>
+      </div>
 
       {!hasMessages && (
         <SuggestionChips onSelect={sendMessage} disabled={isLoading} />

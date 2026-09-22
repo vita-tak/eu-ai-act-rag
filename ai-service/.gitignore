@@ -4,8 +4,8 @@
 # Environment variables
 .env
 
-# Chroma local db
-chroma_db/
+# # Chroma local db
+# chroma_db/
 
 # Python
 __pycache__/

@@ -40,15 +40,20 @@ Current conversation state: {state}{context}
 
 Classify the user's message into exactly one of these intents:
 - rag_query: the user is asking a question about the EU AI Act, its articles,
-  requirements, definitions, or how it works
+  requirements, definitions, or how it works. This includes questions about
+  the classification process itself, such as "How do I classify my AI system?"
+  or "What risk category am I in?" without providing a system description.
+  These are questions about the process, not classification requests.
 - risk_classification: the user is describing an AI system they own or are building
   and wants to know its risk level under the EU AI Act
 - risk_classification_followup: the user is answering a follow-up question in an
   ongoing risk classification
 
 Key distinction: if the user describes "my system", "our system", "an AI system that does X",
-or asks "what risk category does X fall under", classify as risk_classification.
-If the user asks "what does Article X say" or "how does the EU AI Act define X",
+or asks "what risk category does X fall under" while describing a specific system,
+classify as risk_classification.
+If the user asks "what does Article X say", "how does the EU AI Act define X",
+or asks about the classification process without describing a specific system,
 classify as rag_query.
 
 If the state is CLASSIFYING and the message looks like a direct answer to the pending question,
@@ -71,7 +76,6 @@ Respond with JSON only, no other text:
     raw = response.content[0].text.strip()
     # Strip markdown code blocks if present.
     raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    
 
     try:
         result = json.loads(raw)

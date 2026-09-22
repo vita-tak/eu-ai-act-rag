@@ -267,3 +267,23 @@ body::before {
     0 0 0 1px rgb(22 2 17 / 0.055),
     0 1px 2px rgb(22 2 17 / 0.035);
 }
+
+/*
+ * The conversation section's scrollbar stays invisible until the pointer
+ * hovers over it, so the transcript reads cleanly at rest.
+ */
+.scrollbar-on-hover {
+  scrollbar-color: transparent transparent;
+}
+
+.scrollbar-on-hover:hover {
+  scrollbar-color: rgb(22 2 17 / 0.22) transparent;
+}
+
+.scrollbar-on-hover::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+
+.scrollbar-on-hover:hover::-webkit-scrollbar-thumb {
+  background-color: rgb(22 2 17 / 0.22);
+}

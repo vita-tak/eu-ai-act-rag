@@ -120,7 +120,7 @@ export default function Home() {
         <section
           aria-live="polite"
           aria-label="Conversation"
-          className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+          className="scrollbar-on-hover flex min-h-0 flex-1 flex-col overflow-y-auto"
         >
           <div
             className={`mt-auto flex flex-col gap-2.5 pb-5 ${hasMessages ? "pt-20" : "pt-12"}`}

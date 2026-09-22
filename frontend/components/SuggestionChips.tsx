@@ -2,7 +2,7 @@
 
 const SUGGESTIONS = [
   "What is a high-risk AI system?",
-  "How do I classify my AI system?",
+  "Classify my AI system's risk level",
   "What obligations apply to high-risk AI systems?",
 ] as const;
 
@@ -15,7 +15,7 @@ export function SuggestionChips({ onSelect, disabled }: SuggestionChipsProps) {
   return (
     <section aria-labelledby="suggestions-heading" className="pb-10">
       <h2 id="suggestions-heading" className="text-[0.92rem] font-semibold text-[var(--ink-slate)]">
-        Suggestions on what to ask the assistant
+        Suggestions
       </h2>
       <ul className="mt-3 grid grid-cols-1 gap-[15px] sm:grid-cols-3">
         {SUGGESTIONS.map((suggestion) => (

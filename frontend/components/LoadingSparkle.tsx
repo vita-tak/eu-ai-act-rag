@@ -11,9 +11,11 @@ export function LoadingSparkle() {
     <div className="flex flex-col items-end">
       <div className="w-full sm:max-w-[65%]">
         <p className="label-micro pb-2">Compliance assistant</p>
-        <div className="rounded-xl surface-ring border border-[var(--hairline)] bg-[var(--surface)] px-5 py-4">
+        <div className="flex items-center gap-2.5 rounded-xl surface-ring border border-[var(--hairline)] bg-[var(--surface)] px-5 py-4">
           <SparkleIcon className="sparkle-pulse size-6 text-[var(--sparkle-loading)]" />
-          <span className="sr-only">Preparing a response</span>
+          <span className="text-[0.9375rem] text-[var(--ink-muted)]">
+            Thinking...
+          </span>
         </div>
       </div>
     </div>

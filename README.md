@@ -373,4 +373,4 @@ AI workflows without exposing that complexity to the caller.
 
 The EU AI Act is the domain because it is the regulatory framework that
 governs AI systems in Europe. Understanding it programmatically is
-directly relevant to building compliant AI applications.
+directly relevant to building compliant AI applications..

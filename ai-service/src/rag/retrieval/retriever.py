@@ -1,11 +1,11 @@
 from openai import OpenAI
-from flashrank import Ranker, RerankRequest
+from sentence_transformers import CrossEncoder
 from src.config import CHROMA_PATH, EMBEDDING_MODEL, TOP_K, OPENAI_API_KEY, RERANK_CANDIDATES
 import chromadb
 import re
 
-# Load the re-ranker once at module level to avoid reloading on every call.
-ranker = Ranker(model_name="ms-marco-MiniLM-L-12-v2")
+# Load the cross-encoder re-ranker once at module level to avoid reloading on every call.
+reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 
 
 def retrieve(query: str) -> list:
@@ -15,7 +15,7 @@ def retrieve(query: str) -> list:
     Uses keyword-based metadata filtering when the query references a specific
     article (e.g. "Article 12"), and falls back to semantic similarity search
     using embeddings for open-ended questions. Similarity search results are
-    re-ranked before being returned.
+    re-ranked with a cross-encoder before being returned.
 
     Args:
         query: The user's natural language question.
@@ -54,14 +54,12 @@ def retrieve(query: str) -> list:
     documents = results["documents"][0]
     metadatas = results["metadatas"][0]
 
-    # Re-rank the candidates by relevance to the query.
-    # RerankRequest takes the query and a list of passage dicts.
-    passages = [{"id": i, "text": doc} for i, doc in enumerate(documents)]
-    rerank_request = RerankRequest(query=query, passages=passages)
-    reranked = ranker.rerank(rerank_request)
+    # Re-rank the candidates by relevance to the query using a cross-encoder.
+    # CrossEncoder scores each (query, document) pair and returns relevance scores.
+    pairs = [(query, doc) for doc in documents]
+    scores = reranker.predict(pairs)
 
-    # Keep only the top TOP_K results after re-ranking,
-    # and map back to the original metadata using the passage id.
-    top = reranked[:TOP_K]
-    return [{"text": passages[r["id"]]["text"], "article": metadatas[r["id"]]["article"]}
-            for r in top]
+    # Sort by score descending and keep the top TOP_K results.
+    ranked = sorted(zip(scores, documents, metadatas), key=lambda x: x[0], reverse=True)
+    top = ranked[:TOP_K]
+    return [{"text": doc, "article": meta["article"]} for _, doc, meta in top]

@@ -106,7 +106,10 @@ export default function Home() {
       {hasMessages && <FixedHeaderTitle />}
       <ChatHeader hasMessages={hasMessages} />
 
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      <div
+        className="relative flex min-h-0 flex-1 flex-col"
+        style={hasMessages ? { marginTop: "var(--header-height)" } : undefined}
+      >
         {hasMessages && (
           <div
             aria-hidden="true"

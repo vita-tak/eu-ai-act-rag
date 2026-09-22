@@ -60,6 +60,11 @@
 
   /* Layout: the reference content column measures 882px */
   --column: 882px;
+
+  /* Height of the fixed top-left header title (see FixedHeaderTitle), so
+     the scrollable conversation can offset below it instead of scrolling
+     underneath it. */
+  --header-height: 46.5px;
 }
 
 @theme inline {

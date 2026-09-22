@@ -5,7 +5,7 @@ import chromadb
 import re
 
 # Load the cross-encoder re-ranker once at module level to avoid reloading on every call.
-reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+reranker = CrossEncoder("cross-encoder/ms-marco-TinyBERT-L-2")
 
 
 def retrieve(query: str) -> list:

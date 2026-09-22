@@ -5,7 +5,7 @@ import chromadb
 import re
 
 # Load the re-ranker once at module level to avoid reloading on every call.
-ranker = Ranker()
+ranker = Ranker(model_name="rank-T5-flan")
 
 
 def retrieve(query: str) -> list:

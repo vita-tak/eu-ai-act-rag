@@ -1,28 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import type { ChatMessage, ChatResponse } from "@/types/chat";
-
-function formatAssistantContent(response: ChatResponse): string {
-  switch (response.type) {
-    case "rag_response": {
-      if (response.sources.length === 0) {
-        return response.answer;
-      }
-      return `${response.answer}\n\nSources: ${response.sources.join(", ")}`;
-    }
-    case "follow_up":
-      return response.question;
-    case "classification": {
-      const { classification, reasoning, cited_articles } = response.report;
-      return [
-        `Classification: ${classification}`,
-        `Reasoning: ${reasoning}`,
-        `Cited articles: ${cited_articles.join(", ")}`,
-      ].join("\n\n");
-    }
-  }
-}
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { ChatResponse } from "@/types/chat";
+import { AssistantMessage } from "@/components/AssistantMessage";
+import { ChatComposer } from "@/components/ChatComposer";
+import { ChatHeader } from "@/components/ChatHeader";
+import { LoadingSparkle } from "@/components/LoadingSparkle";
+import { SuggestionChips } from "@/components/SuggestionChips";
+import { SystemMessage } from "@/components/SystemMessage";
+import { UserMessage } from "@/components/UserMessage";
+import { roleLabel, type UiMessage } from "@/components/messages";
 
 interface ErrorBody {
   error?: string;
@@ -42,120 +29,114 @@ async function extractErrorMessage(response: Response): Promise<string> {
 }
 
 export default function Home() {
+  // The backend keys server-side conversation state (including CLASSIFYING)
+  // by this id, so it must be generated once per page session.
   const [conversationId] = useState(() => crypto.randomUUID());
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<UiMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [messages, isLoading]);
 
-    const trimmed = input.trim();
-    if (trimmed.length === 0 || isLoading) {
-      return;
-    }
-
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: trimmed,
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          conversation_id: conversationId,
-          message: trimmed,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorMessage = await extractErrorMessage(response);
-        setMessages((prev) => [
-          ...prev,
-          { id: crypto.randomUUID(), role: "system", content: errorMessage },
-        ]);
+  const sendMessage = useCallback(
+    async (raw: string) => {
+      const trimmed = raw.trim();
+      if (trimmed.length === 0 || isLoading) {
         return;
       }
 
-      const data = (await response.json()) as ChatResponse;
       setMessages((prev) => [
         ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: formatAssistantContent(data),
-          type: data.type,
-        },
+        { id: crypto.randomUUID(), role: "user", text: trimmed },
       ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "system",
-          content: "Unable to reach the chat service. Please try again.",
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+      setInput("");
+      setIsLoading(true);
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conversation_id: conversationId,
+            message: trimmed,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorMessage = await extractErrorMessage(response);
+          setMessages((prev) => [
+            ...prev,
+            { id: crypto.randomUUID(), role: "system", text: errorMessage },
+          ]);
+          return;
+        }
+
+        const data = (await response.json()) as ChatResponse;
+        setMessages((prev) => [
+          ...prev,
+          { id: crypto.randomUUID(), role: "assistant", response: data },
+        ]);
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "system",
+            text: "Unable to reach the chat service. Please try again.",
+          },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [conversationId, isLoading],
+  );
+
+  const hasMessages = messages.length > 0;
 
   return (
-    <main aria-label="Chat" className="flex flex-1 flex-col">
+    <main
+      aria-label="Chat"
+      className="mx-auto flex h-dvh w-full max-w-[var(--column)] flex-col px-6"
+    >
+      <ChatHeader hasMessages={hasMessages} />
+
       <section
         aria-live="polite"
         aria-label="Conversation"
-        className="flex flex-1 flex-col gap-4 overflow-y-auto p-4"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
       >
-        {messages.map((message) => (
-          <article key={message.id} aria-label={roleLabel(message.role)}>
-            <p>
-              <strong>{roleLabel(message.role)}:</strong>{" "}
-              <span style={{ whiteSpace: "pre-wrap" }}>{message.content}</span>
-            </p>
-          </article>
-        ))}
+        <div className="mt-auto flex flex-col gap-2.5 pt-12 pb-5">
+          {messages.map((message) => (
+            <article key={message.id} aria-label={roleLabel(message.role)}>
+              {message.role === "user" && <UserMessage text={message.text} />}
+              {message.role === "assistant" && (
+                <AssistantMessage response={message.response} />
+              )}
+              {message.role === "system" && (
+                <SystemMessage text={message.text} />
+              )}
+            </article>
+          ))}
+
+          {isLoading && <LoadingSparkle />}
+          <div ref={endRef} />
+        </div>
       </section>
 
-      <form
-        onSubmit={handleSubmit}
-        aria-busy={isLoading}
-        className="mt-auto flex gap-2 p-4"
-      >
-        <label htmlFor="chat-input" className="sr-only">
-          Message
-        </label>
-        <input
-          id="chat-input"
-          type="text"
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          disabled={isLoading}
-          className="flex-1"
-        />
-        <button type="submit" disabled={isLoading || input.trim().length === 0}>
-          {isLoading ? "Sending..." : "Send"}
-        </button>
-      </form>
+      {!hasMessages && (
+        <SuggestionChips onSelect={sendMessage} disabled={isLoading} />
+      )}
+
+      <ChatComposer
+        value={input}
+        onChange={setInput}
+        onSubmit={() => sendMessage(input)}
+        isLoading={isLoading}
+      />
     </main>
   );
-}
-
-function roleLabel(role: ChatMessage["role"]): string {
-  switch (role) {
-    case "user":
-      return "You";
-    case "assistant":
-      return "Assistant";
-    case "system":
-      return "Error";
-  }
 }
